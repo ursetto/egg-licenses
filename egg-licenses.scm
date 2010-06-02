@@ -4,20 +4,19 @@
   (pp
    (query-dependency-graph
     eggs repo-info
-    (lambda (egg)
-     (let ((egg-info (alist-ref egg repo-info)))
-       (if egg-info
-           `(,egg ,@(let ((license (license egg-info)))
-                      (if license
-                          `((license ,license))
-                          '()))
-                  ,@(let ((needs (needs egg-info)))
-                      (if (pair? needs)
-                          `((needs . ,needs))
-                          '())))
-           `(,egg ?)))))))
+    (lambda (egg egg-info)
+      (if egg-info
+          `(,egg ,@(cond ((license egg-info)
+                          => (lambda (x)
+                               `((license ,x))))
+                         (else '()))
+                 ,@(let ((needs (needs egg-info)))
+                     (if (pair? needs)
+                         `((needs . ,needs))
+                         '())))
+          `(,egg ?))))))
 
-;;;
+;;;kv access
 
 (define (license egg-info)
   (cond ((alist-ref 'license egg-info)
@@ -33,7 +32,7 @@
   (append (deps 'needs egg-info)
           (deps 'depends egg-info)))
 
-;;;
+;;;dep graph
 
 (define (needs-dag egg repo-info)
   (let ((n (needs (alist-ref egg repo-info))))
@@ -45,13 +44,22 @@
   (topological-sort (needs-dag egg repo-info)
                     eq?))
 (define (query-dependency-graph eggs repo-info proc)
-  (map proc
+  (map (lambda (egg)
+         (let ((egg-info (alist-ref egg repo-info)))
+           (proc egg egg-info)))
        (cdr
         (dependency-graph '*QUERY*
                           `((*QUERY* (needs . ,eggs))
                             . ,repo-info)))))
 
 ;;; main
+
+(when (< (length (command-line-arguments))
+         1)
+  (fprintf (current-error-port)
+           "usage: ~a <path-to-chicken-repo> <egg> [<egg> ...]\n"
+           (program-name))
+  (exit 1))
 
 (set! *repo-info* (gather-egg-information
                    (car (command-line-arguments))))
