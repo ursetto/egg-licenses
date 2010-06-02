@@ -1,29 +1,20 @@
 (use setup-download)
 
-(define *repo-info*)
-
-(define (licenses egg repo-info)
-  (let ((egg (if (string? egg) (string->symbol egg) egg)))
-    (pp
-     (map (lambda (egg)
-            (let ((egg-info (alist-ref egg repo-info)))
-              (if egg-info
-                  `(,egg ,(license egg-info) ,(needs egg-info))
-                  `(,egg ?))))
-          (topological-sort (needs-dag egg repo-info) eq?)))))
-
 (define (multi-licenses eggs repo-info)
-  (let ((repo-info (cons `(*QUERY* (needs . ,eggs)
-                                   (license "?"))
-                         repo-info)))
-    (pp
-     (map (lambda (egg)
-            (let ((egg-info (alist-ref egg repo-info)))
-              (if egg-info
-                  `(,egg (license ,(license egg-info))
-                         (needs . ,(needs egg-info)))
-                  `(,egg ?))))
-          (topological-sort (needs-dag '*QUERY* repo-info) eq?)))))
+  (pp
+   (map (lambda (egg)
+          (let ((egg-info (alist-ref egg repo-info)))
+            (if egg-info
+                `(,egg ,@(let ((license (license egg-info)))
+                           (if license
+                               `((license ,license))
+                               '()))
+                       ,@(let ((needs (needs egg-info)))
+                           (if (pair? needs)
+                               `((needs . ,needs))
+                               '())))
+                `(,egg ?))))
+        (query-dependency-graph eggs repo-info))))
 
 (define (license egg-info)
   (cond ((alist-ref 'license egg-info)
@@ -44,7 +35,18 @@
           (append-map
            (lambda (x) (needs-dag x repo-info))
            n))))
+(define (dependency-graph egg repo-info)
+  (topological-sort (needs-dag egg repo-info)
+                    eq?))
+(define (query-dependency-graph eggs repo-info)
+  (cdr
+   (dependency-graph '*QUERY*
+                     `((*QUERY* (needs . ,eggs))
+                       . ,repo-info))))
 
+;;; main
+
+(define *repo-info*)
 (set! *repo-info* (gather-egg-information
                    (cadr (command-line-arguments))))
 
