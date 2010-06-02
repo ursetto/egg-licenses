@@ -29,12 +29,15 @@
   (cond ((alist-ref 'license egg-info)
          => car)
         (else #f)))
-(define (needs egg-info)
-  (cond ((alist-ref 'needs egg-info)       ; add 'depends
+(define (deps key egg-info)
+  (cond ((alist-ref key egg-info)       ; add 'depends
          => (lambda (n)
               (map (lambda (e) (if (pair? e) (car e) e))
                    n)))
         (else '())))
+(define (needs egg-info)
+  (append (deps 'needs egg-info)
+          (deps 'depends egg-info)))
 (define (needs-dag egg repo-info)
   (let ((n (needs (alist-ref egg repo-info))))
     (cons (cons egg n)
