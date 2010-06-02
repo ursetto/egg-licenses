@@ -1,20 +1,23 @@
 (use setup-download)
 
-(define (multi-licenses eggs repo-info)
+(define (licenses eggs repo-info)
   (pp
-   (map (lambda (egg)
-          (let ((egg-info (alist-ref egg repo-info)))
-            (if egg-info
-                `(,egg ,@(let ((license (license egg-info)))
-                           (if license
-                               `((license ,license))
-                               '()))
-                       ,@(let ((needs (needs egg-info)))
-                           (if (pair? needs)
-                               `((needs . ,needs))
-                               '())))
-                `(,egg ?))))
-        (query-dependency-graph eggs repo-info))))
+   (query-dependency-graph
+    eggs repo-info
+    (lambda (egg)
+     (let ((egg-info (alist-ref egg repo-info)))
+       (if egg-info
+           `(,egg ,@(let ((license (license egg-info)))
+                      (if license
+                          `((license ,license))
+                          '()))
+                  ,@(let ((needs (needs egg-info)))
+                      (if (pair? needs)
+                          `((needs . ,needs))
+                          '())))
+           `(,egg ?)))))))
+
+;;;
 
 (define (license egg-info)
   (cond ((alist-ref 'license egg-info)
@@ -29,6 +32,9 @@
 (define (needs egg-info)
   (append (deps 'needs egg-info)
           (deps 'depends egg-info)))
+
+;;;
+
 (define (needs-dag egg repo-info)
   (let ((n (needs (alist-ref egg repo-info))))
     (cons (cons egg n)
@@ -38,17 +44,17 @@
 (define (dependency-graph egg repo-info)
   (topological-sort (needs-dag egg repo-info)
                     eq?))
-(define (query-dependency-graph eggs repo-info)
-  (cdr
-   (dependency-graph '*QUERY*
-                     `((*QUERY* (needs . ,eggs))
-                       . ,repo-info))))
+(define (query-dependency-graph eggs repo-info proc)
+  (map proc
+       (cdr
+        (dependency-graph '*QUERY*
+                          `((*QUERY* (needs . ,eggs))
+                            . ,repo-info)))))
 
 ;;; main
 
-(define *repo-info*)
 (set! *repo-info* (gather-egg-information
-                   (cadr (command-line-arguments))))
+                   (car (command-line-arguments))))
 
-(licenses (caddr (command-line-arguments))
+(licenses (map string->symbol (cdr (command-line-arguments)))
           *repo-info*)
