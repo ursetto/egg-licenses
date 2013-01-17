@@ -23,7 +23,7 @@
          => car)
         (else #f)))
 (define (deps key egg-info)
-  (cond ((alist-ref key egg-info)       ; add 'depends
+  (cond ((alist-ref key egg-info)
          => (lambda (n)
               (map (lambda (e) (if (pair? e) (car e) e))
                    n)))
