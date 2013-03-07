@@ -1,3 +1,5 @@
+;; author Jim Ursetto license MIT
+
 (use setup-download)
 
 (define (licenses eggs repo-info)
